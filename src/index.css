@@ -1,0 +1,179 @@
+:root {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2d2d2d;
+  --bg-hover: #3c3c3c;
+  --border-color: #404040;
+  --text-primary: #cccccc;
+  --text-secondary: #858585;
+  --text-muted: #6b6b6b;
+  --accent-primary: #007acc;
+  --accent-hover: #1e8ad2;
+  --error: #f14c4c;
+  --success: #4ec9b0;
+  --warning: #cca700;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.flexlayout__tab {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.flexlayout__tab:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+.flexlayout__tab--active {
+  background: var(--bg-primary) !important;
+  border-top: 2px solid var(--accent-primary) !important;
+}
+
+.flexlayout__border {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.flexlayout__border__tab {
+  color: var(--text-secondary) !important;
+}
+
+.flexlayout__border__tab:hover {
+  color: var(--text-primary) !important;
+}
+
+.flexlayout__border__tab--active {
+  color: var(--text-primary) !important;
+}
+
+.flexlayout__splitter {
+  background: var(--border-color) !important;
+  width: 1px !important;
+}
+
+.flexlayout__splitter:hover {
+  background: var(--accent-primary) !important;
+}
+
+.flexlayout__splitter--horizontal {
+  height: 1px !important;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+button:hover {
+  background: var(--accent-primary);
+}
+
+input, textarea {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--accent-primary);
+}
+
+.monaco-editor, .monaco-editor-background, .monaco-editor .inputarea.ime-input {
+  background: var(--bg-primary) !important;
+}
+
+.flexlayout {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.app {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+.flexlayout__tab_button_close {
+  display: none !important;
+}
+
+.flexlayout__tabset_tab_button_overflow,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_overflow {
+  background: transparent !important;
+  border: none !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+.flexlayout__tabset_tab_button_overflow:hover,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_overflow:hover {
+  background: var(--bg-hover) !important;
+}
+
+.flexlayout__tabset_tab_button_overflow svg,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_overflow svg {
+  display: none !important;
+}
+
+.flexlayout__tabset_tab_button_overflow::after,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_overflow::after {
+  content: "⋯" !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  color: var(--text-secondary) !important;
+}
