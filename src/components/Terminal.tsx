@@ -1,122 +1,160 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../store';
+import { useEffect, useRef, useState } from 'react';
+import { Terminal as XTerm } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import 'xterm/css/xterm.css';
 
 type ShellType = 'cmd' | 'powershell' | 'powershell7';
 
+const SESSION_ID = 'main-terminal';
+
 export default function Terminal() {
-  const { terminalOutput, addTerminalOutput, clearTerminal } = useAppStore();
-  const [input, setInput] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<XTerm | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
   const [shell, setShell] = useState<ShellType>('powershell');
-  const outputRef = useRef<HTMLDivElement>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    outputRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [terminalOutput]);
+    if (!terminalRef.current || xtermRef.current) return;
 
-  const getShellCommand = (): string => {
-    switch (shell) {
-      case 'cmd': return 'cmd.exe';
-      case 'powershell': return 'powershell.exe';
-      case 'powershell7': return 'pwsh.exe';
-      default: return 'powershell.exe';
-    }
-  };
+    const xterm = new XTerm({
+      theme: {
+        background: '#0c0c0c',
+        foreground: '#cccccc',
+        cursor: '#cccccc',
+        cursorAccent: '#0c0c0c',
+        selectionBackground: '#264f78',
+        black: '#0c0c0c',
+        red: '#c50f1f',
+        green: '#13a10e',
+        yellow: '#c19c00',
+        blue: '#0037da',
+        magenta: '#881798',
+        cyan: '#3a96dd',
+        white: '#cccccc',
+        brightBlack: '#767676',
+        brightRed: '#f38b27',
+        brightGreen: '#16c60c',
+        brightYellow: '#f9f1a5',
+        brightBlue: '#3b78ff',
+        brightMagenta: '#b4009e',
+        brightCyan: '#61d6d6',
+        brightWhite: '#f2f2f2'
+      },
+      fontFamily: 'Consolas, Courier New, monospace',
+      fontSize: 13,
+      lineHeight: 1,
+      letterSpacing: 0,
+      cursorBlink: true,
+      cursorStyle: 'block',
+      cursorWidth: 1,
+      scrollback: 10000,
+      allowTransparency: false,
+      convertEol: false
+    });
 
-  const handleCommand = async () => {
-    if (!input.trim()) return;
-    
-    const cmd = input.trim();
-    setInput('');
-    addTerminalOutput(`[${shell}] $ ${cmd}`);
-    setHistory(prev => [...prev, cmd]);
-    setHistoryIndex(-1);
+    const fitAddon = new FitAddon();
+    xterm.loadAddon(fitAddon);
 
-    try {
-      const shellCmd = getShellCommand();
-      const result = await window.api.invoke('shell:spawn', shellCmd, ['-Command', cmd]);
-      if (result.stdout) {
-        addTerminalOutput(result.stdout);
-      }
-      if (result.stderr) {
-        addTerminalOutput(result.stderr);
-      }
-    } catch (error: any) {
-      addTerminalOutput(`Error: ${error.message}`);
-    }
-  };
+    xterm.open(terminalRef.current);
+    fitAddon.fit();
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCommand();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (history.length > 0) {
-        const newIndex = historyIndex < history.length - 1 ? historyIndex + 1 : historyIndex;
-        setHistoryIndex(newIndex);
-        setInput(history[history.length - 1 - newIndex] || '');
+    xtermRef.current = xterm;
+    fitAddonRef.current = fitAddon;
+
+    const initShell = async () => {
+      try {
+        await window.api.invoke('shell:create', shell, SESSION_ID);
+        setIsConnected(true);
+      } catch (error: any) {
+        xterm.writeln(`\x1b[31mFailed to start shell: ${error.message}\x1b[0m`);
       }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
-        setHistoryIndex(newIndex);
-        setInput(history[history.length - 1 - newIndex] || '');
-      } else {
-        setHistoryIndex(-1);
-        setInput('');
+    };
+    initShell();
+
+    const unsubData = window.api.on('shell:data', (_sessionId: string, data: string) => {
+      if (_sessionId === SESSION_ID && xtermRef.current) {
+        xtermRef.current.write(data);
       }
-    }
+    });
+
+    const unsubExit = window.api.on('shell:exit', (_sessionId: string, code: number) => {
+      if (_sessionId === SESSION_ID && xtermRef.current) {
+        xtermRef.current.writeln(`\r\n\x1b[33m[Process exited with code ${code}]\x1b[0m`);
+        setIsConnected(false);
+      }
+    });
+
+    xterm.onData((data) => {
+      window.api.invoke('shell:write', SESSION_ID, data);
+    });
+
+    const handleResize = () => {
+      if (fitAddonRef.current && xtermRef.current) {
+        fitAddonRef.current.fit();
+        window.api.invoke('shell:resize', SESSION_ID, xtermRef.current.cols, xtermRef.current.rows);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      unsubData();
+      unsubExit();
+      window.api.invoke('shell:kill', SESSION_ID);
+      xterm.dispose();
+    };
+  }, []);
+
+  const handleShellChange = async (newShell: ShellType) => {
+    await window.api.invoke('shell:kill', SESSION_ID);
+    xtermRef.current?.clear();
+    setShell(newShell);
+    setIsConnected(false);
+
+    setTimeout(async () => {
+      try {
+        await window.api.invoke('shell:create', newShell, SESSION_ID);
+        setIsConnected(true);
+      } catch (error: any) {
+        xtermRef.current?.writeln(`\x1b[31mFailed to start shell: ${error.message}\x1b[0m`);
+      }
+    }, 100);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        padding: '4px 8px', 
-        background: 'var(--bg-secondary)',
-        borderBottom: '1px solid var(--border-color)'
-      }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0c0c0c' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid #1f1f1f', background: '#1f1f1f' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12 }}>Terminal</span>
-          <select 
-            value={shell} 
-            onChange={(e) => setShell(e.target.value as ShellType)}
-            style={{ 
-              padding: '2px 4px', 
-              fontSize: 10, 
-              background: 'var(--bg-tertiary)', 
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 2
+          <select
+            value={shell}
+            onChange={(e) => handleShellChange(e.target.value as ShellType)}
+            style={{
+              padding: '2px 4px',
+              fontSize: 12,
+              background: '#0c0c0c',
+              color: '#cccccc',
+              border: '1px solid #333',
+              borderRadius: 0
             }}
           >
             <option value="cmd">CMD</option>
             <option value="powershell">PowerShell</option>
             <option value="powershell7">PowerShell 7</option>
           </select>
+          <span style={{ fontSize: 11, color: isConnected ? '#0dbc79' : '#cd3131' }}>
+            {isConnected ? '● Connected' : '○ Disconnected'}
+          </span>
         </div>
-        <button onClick={clearTerminal} style={{ padding: '2px 8px', fontSize: 11 }}>Clear</button>
+        <button 
+          onClick={() => xtermRef.current?.clear()}
+          style={{ padding: '2px 8px', fontSize: 11, background: '#3c3c3c', color: '#cccccc', border: 'none', borderRadius: 2 }}
+        >
+          Clear
+        </button>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: 8, fontFamily: 'monospace', fontSize: 13 }}>
-        {terminalOutput.map((line, i) => (
-          <div key={i} style={{ whiteSpace: 'pre-wrap', marginBottom: 2 }}>{line}</div>
-        ))}
-        <div ref={outputRef} />
-      </div>
-      <div style={{ padding: 8, borderTop: '1px solid var(--border-color)' }}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Enter command..."
-          style={{ width: '100%', fontFamily: 'monospace' }}
-          autoFocus
-        />
-      </div>
+      <div ref={terminalRef} style={{ flex: 1, padding: 8, fontFamily: 'Consolas, "Cascadia Code", "Cascadia Mono", monospace' }} />
     </div>
   );
 }
