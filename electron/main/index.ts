@@ -80,8 +80,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false
     },
-    titleBarStyle: 'hiddenInset',
-    frame: true
+    frame: false
   });
 
   mainWindow.once('ready-to-show', () => {

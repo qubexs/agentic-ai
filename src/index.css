@@ -1,3 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+* {
+  font-family: 'Poppins', sans-serif;
+}
+
+.more-icon {
+  filter: invert(1);
+}
+
+.flexlayout__tabset_tab_button_more,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_more {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.flexlayout__tabset_tab_button_more svg,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_more svg {
+  display: none !important;
+}
+
+.flexlayout__tabset_tab_button_more::after,
+.flexlayout__tabset_buttons .flexlayout__tabset_tab_button_more::after {
+  content: "⋯" !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  color: var(--text-secondary) !important;
+  line-height: 1 !important;
+}
+
 :root {
   --bg-primary: #1e1e1e;
   --bg-secondary: #252526;
@@ -27,7 +63,7 @@ html, body, #root {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
   color: var(--text-primary);
   background: var(--bg-primary);
@@ -63,7 +99,7 @@ body {
 
 .flexlayout__tab--active {
   background: var(--bg-primary) !important;
-  border-top: 2px solid var(--accent-primary) !important;
+  border-top: 0px !important;
 }
 
 .flexlayout__border {
@@ -85,15 +121,22 @@ body {
 
 .flexlayout__splitter {
   background: var(--border-color) !important;
-  width: 1px !important;
 }
 
 .flexlayout__splitter:hover {
-  background: var(--accent-primary) !important;
+  background: #0066cc !important;
+  box-shadow: inset 0 0 1px #0066cc;
+}
+
+.flexlayout__splitter--vertical {
+  width: 1px !important;
+  cursor: ew-resize !important;
 }
 
 .flexlayout__splitter--horizontal {
   height: 1px !important;
+  cursor: ns-resize !important;
+  background: var(--border-color) !important;
 }
 
 button {

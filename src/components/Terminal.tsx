@@ -1,30 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store';
 
+type ShellType = 'cmd' | 'powershell' | 'powershell7';
+
 export default function Terminal() {
   const { terminalOutput, addTerminalOutput, clearTerminal } = useAppStore();
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [shell, setShell] = useState<ShellType>('powershell');
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     outputRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [terminalOutput]);
 
+  const getShellCommand = (): string => {
+    switch (shell) {
+      case 'cmd': return 'cmd.exe';
+      case 'powershell': return 'powershell.exe';
+      case 'powershell7': return 'pwsh.exe';
+      default: return 'powershell.exe';
+    }
+  };
+
   const handleCommand = async () => {
     if (!input.trim()) return;
     
     const cmd = input.trim();
     setInput('');
-    addTerminalOutput(`$ ${cmd}`);
+    addTerminalOutput(`[${shell}] $ ${cmd}`);
     setHistory(prev => [...prev, cmd]);
     setHistoryIndex(-1);
 
-    const [command, ...args] = cmd.split(' ');
-    
     try {
-      const result = await window.api.invoke('shell:spawn', command, args);
+      const shellCmd = getShellCommand();
+      const result = await window.api.invoke('shell:spawn', shellCmd, ['-Command', cmd]);
       if (result.stdout) {
         addTerminalOutput(result.stdout);
       }
@@ -68,7 +79,25 @@ export default function Terminal() {
         background: 'var(--bg-secondary)',
         borderBottom: '1px solid var(--border-color)'
       }}>
-        <span style={{ fontSize: 12 }}>Terminal</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12 }}>Terminal</span>
+          <select 
+            value={shell} 
+            onChange={(e) => setShell(e.target.value as ShellType)}
+            style={{ 
+              padding: '2px 4px', 
+              fontSize: 10, 
+              background: 'var(--bg-tertiary)', 
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 2
+            }}
+          >
+            <option value="cmd">CMD</option>
+            <option value="powershell">PowerShell</option>
+            <option value="powershell7">PowerShell 7</option>
+          </select>
+        </div>
         <button onClick={clearTerminal} style={{ padding: '2px 8px', fontSize: 11 }}>Clear</button>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: 8, fontFamily: 'monospace', fontSize: 13 }}>
