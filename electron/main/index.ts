@@ -2,10 +2,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, dialog } from 'electron';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as pty from 'node-pty';
 import { mcpClient } from './mcp';
-
-const ptyProcesses: Map<string, pty.IPty> = new Map();
 
 const getBasePath = () => {
   if (app.isPackaged) {
@@ -210,61 +207,32 @@ ipcMain.handle('storage:delete', async (_event, key: string) => {
   return { success: true };
 });
 
-// PTY Shell - persistent terminal sessions
-ipcMain.handle('shell:create', async (_event, shell: string, sessionId: string) => {
-  try {
-    const shellPath = shell === 'cmd' ? 'cmd.exe' : shell === 'powershell7' ? 'pwsh.exe' : 'powershell.exe';
-    const ptyProcess = pty.spawn(shellPath, [], {
-      name: 'dumb',
-      cols: 80,
-      rows: 30,
-      cwd: process.cwd(),
-      env: { ...process.env, TERM: 'dumb' } as { [key: string]: string }
+// Simple Shell - non-persistent
+ipcMain.handle('shell:spawn', async (_event, shell: string, command: string) => {
+  const shellPath = shell === 'cmd' ? 'cmd.exe' : shell === 'powershell7' ? 'pwsh.exe' : 'powershell.exe';
+  const shellArgs = shell === 'cmd' ? ['/c', command] : ['-Command', command];
+
+  return new Promise((resolve) => {
+    const child = spawn(shellPath, shellArgs, { shell: true });
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout?.on('data', (data) => {
+      stdout += data.toString();
     });
 
-    ptyProcesses.set(sessionId, ptyProcess);
-
-    ptyProcess.onData((data) => {
-      mainWindow?.webContents.send('shell:data', sessionId, data);
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString();
     });
 
-    ptyProcess.onExit(({ exitCode }) => {
-      mainWindow?.webContents.send('shell:exit', sessionId, exitCode);
-      ptyProcesses.delete(sessionId);
+    child.on('close', (code) => {
+      resolve({ code, stdout, stderr });
     });
 
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('shell:write', async (_event, sessionId: string, data: string) => {
-  const ptyProcess = ptyProcesses.get(sessionId);
-  if (ptyProcess) {
-    ptyProcess.write(data);
-    return { success: true };
-  }
-  return { success: false, error: 'Session not found' };
-});
-
-ipcMain.handle('shell:resize', async (_event, sessionId: string, cols: number, rows: number) => {
-  const ptyProcess = ptyProcesses.get(sessionId);
-  if (ptyProcess) {
-    ptyProcess.resize(cols, rows);
-    return { success: true };
-  }
-  return { success: false, error: 'Session not found' };
-});
-
-ipcMain.handle('shell:kill', async (_event, sessionId: string) => {
-  const ptyProcess = ptyProcesses.get(sessionId);
-  if (ptyProcess) {
-    ptyProcess.kill();
-    ptyProcesses.delete(sessionId);
-    return { success: true };
-  }
-  return { success: false, error: 'Session not found' };
+    child.on('error', (error) => {
+      resolve({ code: -1, stdout: '', stderr: error.message });
+    });
+  });
 });
 
 // Window controls
